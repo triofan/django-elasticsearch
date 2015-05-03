@@ -4,11 +4,12 @@ import re
 from datetime import datetime
 from functools import wraps
 
-from django.db.models.sql.compiler import SQLCompiler
+# from django.db.models.sql.compiler import SQLCompiler
 from django.db.models.constants import LOOKUP_SEP
 from django.db.utils import DatabaseError
 from django.db.models.fields import NOT_PROVIDED
 from pyes import (
+    TermQuery,
     MatchAllQuery,
     RangeQuery,
     ESRange,
@@ -28,52 +29,53 @@ from django.db.models.fields import AutoField
 import logging
 
 TYPE_MAPPING_FROM_DB = {
-    'unicode':  lambda val: unicode(val),
-    'int':      lambda val: int(val),
-    'float':    lambda val: float(val),
-    'bool':     lambda val: bool(val),
+    'unicode': lambda val: unicode(val),
+    'int': lambda val: int(val),
+    'float': lambda val: float(val),
+    'bool': lambda val: bool(val),
 }
 
 TYPE_MAPPING_TO_DB = {
-    'unicode':  lambda val: unicode(val),
-    'int':      lambda val: int(val),
-    'float':    lambda val: float(val),
-    'bool':     lambda val: bool(val),
-    'date':     lambda val: datetime(val.year, val.month, val.day),
-    'time':     lambda val: datetime(2000, 1, 1, val.hour, val.minute,
-                                     val.second, val.microsecond),
+    'unicode': lambda val: unicode(val),
+    'int': lambda val: int(val),
+    'float': lambda val: float(val),
+    'bool': lambda val: bool(val),
+    'date': lambda val: datetime(val.year, val.month, val.day),
+    'time': lambda val: datetime(2000, 1, 1, val.hour, val.minute,
+                                 val.second, val.microsecond),
 }
 
 OPERATORS_MAP = {
-    'exact':    lambda val: val,
-    'iexact':    lambda val: val, #tofix
-    'startswith':    lambda val: r'^%s' % re.escape(val),
-    'istartswith':    lambda val: r'^%s' % re.escape(val),
-    'endswith':    lambda val: r'%s$' % re.escape(val),
-    'iendswith':    lambda val: r'%s$' % re.escape(val),
-    'contains':    lambda val: r'%s' % re.escape(val),
-    'icontains':    lambda val: r'%s' % re.escape(val),
-    'regex':    lambda val: val,
-    'iregex':   lambda val: re.compile(val, re.IGNORECASE),
-    'gt':       lambda val: {"_from" : val, "include_lower" : False},
-    'gte':      lambda val: {"_from" : val, "include_lower" : True},
-    'lt':       lambda val: {"_to" : val, "include_upper": False},
-    'lte':      lambda val: {"_to" : val, "include_upper": True},
-    'range':    lambda val: {"_from" : val[0], "_to" : val[1], "include_lower" : True, "include_upper": True},
-    'year':     lambda val: {"_from" : val[0], "_to" : val[1], "include_lower" : True, "include_upper": False},
-    'isnull':   lambda val: None if val else {'$ne': None},
-    'in':       lambda val: val,
+    'exact': lambda val: val,
+    'iexact': lambda val: val,  # tofix
+    'startswith': lambda val: r'^%s' % re.escape(val),
+    'istartswith': lambda val: r'^%s' % re.escape(val),
+    'endswith': lambda val: r'%s$' % re.escape(val),
+    'iendswith': lambda val: r'%s$' % re.escape(val),
+    'contains': lambda val: r'%s' % re.escape(val),
+    'icontains': lambda val: r'%s' % re.escape(val),
+    'regex': lambda val: val,
+    'iregex': lambda val: re.compile(val, re.IGNORECASE),
+    'gt': lambda val: {"_from": val, "include_lower": False},
+    'gte': lambda val: {"_from": val, "include_lower": True},
+    'lt': lambda val: {"_to": val, "include_upper": False},
+    'lte': lambda val: {"_to": val, "include_upper": True},
+    'range': lambda val: {"_from": val[0], "_to": val[1], "include_lower": True, "include_upper": True},
+    'year': lambda val: {"_from": val[0], "_to": val[1], "include_lower": True, "include_upper": False},
+    'isnull': lambda val: None if val else {'$ne': None},
+    'in': lambda val: val,
 }
 
 NEGATED_OPERATORS_MAP = {
-    'exact':    lambda val: {'$ne': val},
-    'gt':       lambda val: {"_to" : val, "include_upper": True},
-    'gte':      lambda val: {"_to" : val, "include_upper": False},
-    'lt':       lambda val: {"_from" : val, "include_lower" : True},
-    'lte':      lambda val: {"_from" : val, "include_lower" : False},
-    'isnull':   lambda val: {'$ne': None} if val else None,
-    'in':       lambda val: {'$nin': val},
+    'exact': lambda val: {'$ne': val},
+    'gt': lambda val: {"_to": val, "include_upper": True},
+    'gte': lambda val: {"_to": val, "include_upper": False},
+    'lt': lambda val: {"_from": val, "include_lower": True},
+    'lte': lambda val: {"_from": val, "include_lower": False},
+    'isnull': lambda val: {'$ne': None} if val else None,
+    'in': lambda val: {'$nin': val},
 }
+
 
 def _get_mapping(db_type, value, mapping):
     # TODO - comments. lotsa comments
@@ -94,11 +96,14 @@ def _get_mapping(db_type, value, mapping):
 
     return _func(value)
 
+
 def python2db(db_type, value):
     return _get_mapping(db_type, value, TYPE_MAPPING_TO_DB)
 
+
 def db2python(db_type, value):
     return _get_mapping(db_type, value, TYPE_MAPPING_FROM_DB)
+
 
 def safe_call(func):
     @wraps(func)
@@ -110,6 +115,7 @@ def safe_call(func):
             traceback.print_exc()
             raise DatabaseError, DatabaseError(str(e)), sys.exc_info()[2]
     return _func
+
 
 class DBQuery(NonrelQuery):
     # ----------------------------------------------
@@ -156,60 +162,62 @@ class DBQuery(NonrelQuery):
     def order_by(self, ordering):
         for order in ordering:
             if order.startswith('-'):
-                order, direction = order[1:], {"reverse" : True}
+                order, direction = order[1:], {"reverse": True}
             else:
                 direction = 'desc'
             self._ordering.append({order: direction})
 
     # This function is used by the default add_filters() implementation
-    @safe_call
-    def add_filter(self, column, lookup_type, negated, db_type, value):
+    # @safe_call
+    def add_filter(self, column, lookup_type, negated, value):
         if column == self.query.get_meta().pk.column:
             column = '_id'
         # Emulated/converted lookups
 
-        if negated and lookup_type in NEGATED_OPERATORS_MAP:
-            op = NEGATED_OPERATORS_MAP[lookup_type]
-            negated = False
-        else:
-            op = OPERATORS_MAP[lookup_type]
-        value = op(self.convert_value_for_db(db_type, value))
+        # if negated and lookup_type in NEGATED_OPERATORS_MAP:
+        #     op = NEGATED_OPERATORS_MAP[lookup_type]
+        #     negated = False
+        # else:
+        #     op = OPERATORS_MAP[lookup_type]
 
-        queryf = self._get_query_type(column, lookup_type, db_type, value)
+        # value = op(self.convert_value_for_db(db_type, value))
+
+        queryf = self._get_query_type(column, lookup_type, value)
 
         if negated:
             self.db_query.add([NotFilter(queryf)])
         else:
             self.db_query.add([queryf])
 
-    def _get_query_type(self, column, lookup_type, db_type, value):
-        if db_type == "unicode":
-            if (lookup_type == "exact" or lookup_type == "iexact"):
-                q = TermQuery(column, value)
-                return q
-            if (lookup_type == "startswith" or lookup_type == "istartswith"):
-                return RegexTermFilter(column, value)
-            if (lookup_type == "endswith" or lookup_type == "iendswith"):
-                return RegexTermFilter(column, value)
-            if (lookup_type == "contains" or lookup_type == "icontains"):
-                return RegexTermFilter(column, value)
-            if (lookup_type == "regex" or lookup_type == "iregex"):
-                return RegexTermFilter(column, value)
+    def _get_query_type(self, column, lookup_type, value):
+        # if db_type == "unicode":
+        #     if (lookup_type == "exact" or lookup_type == "iexact"):
+        #         q = TermQuery(column, value)
+        #         return q
+        #     if (lookup_type == "startswith" or lookup_type == "istartswith"):
+        #         return RegexTermFilter(column, value)
+        #     if (lookup_type == "endswith" or lookup_type == "iendswith"):
+        #         return RegexTermFilter(column, value)
+        #     if (lookup_type == "contains" or lookup_type == "icontains"):
+        #         return RegexTermFilter(column, value)
+        #     if (lookup_type == "regex" or lookup_type == "iregex"):
+        #         return RegexTermFilter(column, value)
 
-        if db_type == "datetime" or db_type == "date":
-            if (lookup_type == "exact" or lookup_type == "iexact"):
-                return TermFilter(column, value)
+        # if db_type == "datetime" or db_type == "date":
+        #     if (lookup_type == "exact" or lookup_type == "iexact"):
+        #         return TermFilter(column, value)
 
-        #TermFilter, TermsFilter
-        if lookup_type in ["gt", "gte", "lt", "lte", "range", "year"]:
-            value['field'] = column
-            return RangeQuery(ESRange(**value))
-        if lookup_type == "in":
-#            terms = [TermQuery(column, val) for val in value]
-#            if len(terms) == 1:
-#                return terms[0]
-#            return BoolQuery(should=terms)
-            return TermsFilter(field=column, values=value)
+        # # TermFilter, TermsFilter
+        # if lookup_type in ["gt", "gte", "lt", "lte", "range", "year"]:
+        #     value['field'] = column
+        #     return RangeQuery(ESRange(**value))
+        # if lookup_type == "in":
+        #     # terms = [TermQuery(column, val) for val in value]
+        #     # if len(terms) == 1:
+        #     #     return terms[0]
+        #     # return BoolQuery(should=terms)
+        #     return TermsFilter(field=column, values=value)
+        return TermQuery(column.name, value)
         raise NotImplemented
 
     def _get_results(self):
@@ -224,6 +232,7 @@ class DBQuery(NonrelQuery):
             query.sort = self._ordering
         #print "query", self.query.tables, query
         return self._connection.search(query, indices=[self.connection.db_name], doc_types=self.query.model._meta.db_table)
+
 
 class SQLCompiler(NonrelCompiler):
     """
@@ -314,6 +323,7 @@ class SQLInsertCompiler(NonrelInsertCompiler, SQLCompiler):
         #print "Insert result", res
         return res['_id']
 
+
 # TODO: Define a common nonrel API for updates and add it to the nonrel
 # backend base classes and port this code to that API
 class SQLUpdateCompiler(SQLCompiler):
@@ -332,6 +342,7 @@ class SQLUpdateCompiler(SQLCompiler):
         res = self.connection.db_connection.index(data, self.connection.db_name, db_table, id=pk)
 
         return res['_id']
+
 
 class SQLDeleteCompiler(NonrelDeleteCompiler, SQLCompiler):
     def execute_sql(self, return_id=False):

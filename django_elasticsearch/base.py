@@ -10,6 +10,7 @@ from djangotoolbox.db.base import NonrelDatabaseFeatures, \
 
 from djangotoolbox.db.base import NonrelDatabaseOperations
 
+
 class DatabaseOperations(NonrelDatabaseOperations):
     compiler_module = __name__.rsplit('.', 1)[0] + '.compiler'
 
@@ -25,14 +26,18 @@ class DatabaseOperations(NonrelDatabaseOperations):
         """
         pass
 
+
 class DatabaseFeatures(NonrelDatabaseFeatures):
     string_based_auto_field = True
+
 
 class DatabaseClient(NonrelDatabaseClient):
     pass
 
+
 class DatabaseValidation(NonrelDatabaseValidation):
     pass
+
 
 class DatabaseIntrospection(NonrelDatabaseIntrospection):
     def table_names(self):
@@ -45,6 +50,7 @@ class DatabaseIntrospection(NonrelDatabaseIntrospection):
     def sequence_list(self):
         # TODO: check if it's necessary to implement that
         pass
+
 
 class DatabaseWrapper(NonrelDatabaseWrapper):
     def _cursor(self):
@@ -81,7 +87,7 @@ class DatabaseWrapper(NonrelDatabaseWrapper):
                                   default_indices=[self.db_name])
 
             self._db_connection = self._connection
-            #auto index creation: check if to remove
+            # auto index creation: check if to remove
             try:
                 self._connection.create_index(self.db_name)
             except:

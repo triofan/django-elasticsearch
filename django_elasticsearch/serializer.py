@@ -1,9 +1,10 @@
 from django.utils.importlib import import_module
-from datetime import datetime, date, time
-#TODO Add content type cache
+from datetime import datetime, date
+# TODO Add content type cache
 from utils import ModelLazyObject
 from json import JSONDecoder, JSONEncoder
 import uuid
+
 
 class Decoder(JSONDecoder):
     """Extends the base simplejson JSONDecoder for Dejavu."""
@@ -14,7 +15,7 @@ class Decoder(JSONDecoder):
         self.arena = arena
 
     def json_to_python(self, son):
-        
+
         if isinstance(son, dict):
             if "_type" in son and son["_type"] in [u"django", u'emb']:
                 son = self.decode_django(son)
@@ -43,8 +44,8 @@ class Decoder(JSONDecoder):
                 model = ContentType.objects.get(app_label=data['_app'], model=data['_model']).model_class()
             except:
                 module = import_module(data['_app'])
-                model = getattr(module, data['_model'])            
-            
+                model = getattr(module, data['_model'])
+
             del data['_type']
             del data['_app']
             del data['_model']
@@ -54,10 +55,11 @@ class Decoder(JSONDecoder):
                 values[str(k)] = self.json_to_python(v)
             return model(**values)
 
+
 class Encoder(JSONEncoder):
     def __init__(self, *args, **kwargs):
         JSONEncoder.__init__(self, *args, **kwargs)
-        
+
 
     def encode_django(self, model):
         """
@@ -67,7 +69,7 @@ class Encoder(JSONEncoder):
         if isinstance(model, EmbeddedModel):
             if model.pk is None:
                 model.pk = str(uuid.uuid4())
-            res = {'_app':model._meta.app_label, 
+            res = {'_app':model._meta.app_label,
                    '_model':model._meta.module_name,
                    '_id':model.pk}
             for field in model._meta.fields:
@@ -79,11 +81,11 @@ class Encoder(JSONEncoder):
             except:
                 res['_app'] = model.__class__.__module__
                 res['_model'] = model._meta.object_name
-                
+
             return res
         if not model.pk:
             model.save()
-        return {'_app':model._meta.app_label, 
+        return {'_app':model._meta.app_label,
                 '_model':model._meta.module_name,
                 'pk':model.pk,
                 '_type':"django"}
@@ -91,7 +93,7 @@ class Encoder(JSONEncoder):
     def default(self, value):
         """Convert rogue and mysterious data types.
         Conversion notes:
-        
+
         - ``datetime.date`` and ``datetime.datetime`` objects are
         converted into datetime strings.
         """
@@ -103,16 +105,16 @@ class Encoder(JSONEncoder):
         elif isinstance(value, date):
             dt = datetime(value.year, value.month, value.day, 0, 0, 0)
             return dt.strftime("%Y-%m-%dT%H:%M:%S")
-#        elif isinstance(value, dict):
-#            for (key, value) in value.items():
-#                if isinstance(value, (str, unicode)):
-#                    continue
-#                if isinstance(value, (Model, EmbeddedModel)):
-#                    value[key] = self.encode_django(value, collection)
-#                elif isinstance(value, dict): # Make sure we recurse into sub-docs
-#                    value[key] = self.transform_incoming(value)
-#                elif hasattr(value, "__iter__"): # Make sure we recurse into sub-docs
-#                    value[key] = [self.transform_incoming(item) for item in value]
+        # elif isinstance(value, dict):
+        #     for (key, value) in value.items():
+        #         if isinstance(value, (str, unicode)):
+        #             continue
+        #         if isinstance(value, (Model, EmbeddedModel)):
+        #             value[key] = self.encode_django(value, collection)
+        #         elif isinstance(value, dict): # Make sure we recurse into sub-docs
+        #             value[key] = self.transform_incoming(value)
+        #         elif hasattr(value, "__iter__"): # Make sure we recurse into sub-docs
+        #             value[key] = [self.transform_incoming(item) for item in value]
         elif isinstance(value, (str, unicode)):
             pass
         elif hasattr(value, "__iter__"): # Make sure we recurse into sub-docs

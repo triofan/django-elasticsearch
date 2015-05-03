@@ -1,26 +1,25 @@
 import django
-from django.conf import settings
 from django.db import models
-from django.core import exceptions, serializers
-from django.db.models import Field, CharField
+from django.core import exceptions
+from django.db.models import CharField
 from django.db.models.fields import FieldDoesNotExist
-from django.utils.translation import ugettext_lazy as _
 from django.db.models.fields import AutoField as DJAutoField
-from django.db.models import signals
 import uuid
 from .manager import Manager
 __all__ = ["EmbeddedModel"]
 __doc__ = "ES special fields"
 
+
 class EmbeddedModel(models.Model):
     _embedded_in = None
+
     class Meta:
         abstract = True
 
     def save(self, *args, **kwargs):
         if self.pk is None:
             self.pk = str(uuid.uuid4())
-        if self._embedded_in  is None:
+        if self._embedded_in is None:
             raise RuntimeError("Invalid save")
         self._embedded_in.save()
 
@@ -28,12 +27,17 @@ class EmbeddedModel(models.Model):
         if self.pk is None:
             self.pk = "TODO"
             self.id = self.pk
-        result = {'_app':self._meta.app_label,
-            '_model':self._meta.module_name,
-            '_id':self.pk}
+
+        result = {
+            '_app': self._meta.app_label,
+            '_model': self._meta.module_name,
+            '_id': self.pk
+        }
+
         for field in self._meta.fields:
             result[field.attname] = getattr(self, field.attname)
         return result
+
 
 class ElasticField(CharField):
 
@@ -51,7 +55,6 @@ class ElasticField(CharField):
 
     def contribute_to_class(self, cls, name):
         super(ElasticField, self).contribute_to_class(cls, name)
-
 
         index = cls._meta.db_table
         doc_type = self.doc_type
@@ -100,16 +103,16 @@ class ElasticField(CharField):
             return id
 
         if value:
-#            elst = ES('http://127.0.0.1:9200/')
+            # elst = ES('http://127.0.0.1:9200/')
             result = elst.index(doc=value, index=index, doc_type=doc_type, id=id or None)
             setattr(model_instance, "_%s_id" % self.attname, result["_id"])
             setattr(model_instance, "_%s_cache" % self.attname, value)
         return getattr(model_instance, "_%s_id" % self.attname, u"")
 
+
 #
 # Fix standard models to work with elasticsearch
 #
-
 def autofield_to_python(value):
     if value is None:
         return value
@@ -118,10 +121,12 @@ def autofield_to_python(value):
     except (TypeError, ValueError):
         raise exceptions.ValidationError(self.error_messages['invalid'])
 
+
 def autofield_get_prep_value(value):
     if value is None:
         return None
     return unicode(value)
+
 
 def pre_init_mongodb_signal(sender, args, **kwargs):
     if sender._meta.abstract:
@@ -130,7 +135,7 @@ def pre_init_mongodb_signal(sender, args, **kwargs):
     from django.conf import settings
 
     database = settings.DATABASES[sender.objects.db]
-    if not 'elasticsearch' in database['ENGINE']:
+    if 'elasticsearch' not in database['ENGINE']:
         return
 
     if not hasattr(django, 'MODIFIED') and isinstance(sender._meta.pk, DJAutoField):
@@ -138,8 +143,10 @@ def pre_init_mongodb_signal(sender, args, **kwargs):
         setattr(pk, "to_python", autofield_to_python)
         setattr(pk, "get_prep_value", autofield_get_prep_value)
 
+
 class ESMeta(object):
     pass
+
 
 def add_elasticsearch_manager(sender, **kwargs):
     """
@@ -163,9 +170,8 @@ def add_elasticsearch_manager(sender, **kwargs):
             setattr(cls, 'es', Manager())
 
             es_meta = getattr(cls, "ESMeta", ESMeta).__dict__.copy()
-#            setattr(cls, "_meta", ESMeta())
+            # setattr(cls, "_meta", ESMeta())
             for attr in es_meta:
                 if attr.startswith("_"):
                     continue
                 setattr(cls._meta, attr, es_meta[attr])
-

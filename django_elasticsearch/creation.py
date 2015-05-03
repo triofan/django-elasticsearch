@@ -2,6 +2,7 @@ from djangotoolbox.db.base import NonrelDatabaseCreation
 from pyes.exceptions import NotFoundException
 TEST_DATABASE_PREFIX = 'test_'
 
+
 class DatabaseCreation(NonrelDatabaseCreation):
     data_types = {
         'DateTimeField':                'datetime',
@@ -48,7 +49,7 @@ class DatabaseCreation(NonrelDatabaseCreation):
     def sql_create_model(self, model, style, known_models=set()):
         from mapping import model_to_mapping
         mappings = model_to_mapping(model)
-        self.connection.db_connection.put_mapping(model._meta.db_table, {mappings.name:mappings.as_dict()})
+        self.connection.db_connection.put_mapping(model._meta.db_table, {mappings.name: mappings.as_dict()})
         return [], {}
 
     def set_autocommit(self):
@@ -70,20 +71,19 @@ class DatabaseCreation(NonrelDatabaseCreation):
                 # suspect this Django 1.1
                 test_database_name = self.connection.settings_dict['DATABASE_NAME']
             else:
-                test_database_name = TEST_DATABASE_PREFIX + \
-                  self.connection.settings_dict['DATABASE_NAME']
+                test_database_name = TEST_DATABASE_PREFIX + self.connection.settings_dict['DATABASE_NAME']
         else:
             raise ValueError("Name for test database not defined")
 
         self.connection.settings_dict['NAME'] = test_database_name
         # This is important. Here we change the settings so that all other code
         # things that the chosen database is now the test database. This means
-        # that nothing needs to change in the test code for working with 
+        # that nothing needs to change in the test code for working with
         # connections, databases and collections. It will appear the same as
         # when working with non-test code.
 
         # In this phase it will only drop the database if it already existed
-        # which could potentially happen if the test database was created but 
+        # which could potentially happen if the test database was created but
         # was never dropped at the end of the tests
         try:
             self._drop_database(test_database_name)
@@ -94,7 +94,6 @@ class DatabaseCreation(NonrelDatabaseCreation):
         self.connection.db_connection.cluster_health(wait_for_status='green')
 
         call_command('syncdb', verbosity=max(verbosity - 1, 0), interactive=False, database=self.connection.alias)
-
 
     def destroy_test_db(self, old_database_name, verbosity=1):
         """

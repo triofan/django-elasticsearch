@@ -2,9 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from pyes import mappings
-from django.conf import settings
-import time
-from django.db.models.manager import Manager
+
 
 def model_to_mapping(model, depth=1):
     """
@@ -27,12 +25,12 @@ def model_to_mapping(model, depth=1):
         type = options.pop("type", "string")
         if type == "string":
             data = dict(name=name, store=True,
-                           index="analyzed",
-                           term_vector="with_positions_offsets"
-                           )
+                        index="analyzed",
+                        term_vector="with_positions_offsets"
+                        )
             data.update(options)
 
-            if  data['index'] == 'not_analyzed':
+            if data['index'] == 'not_analyzed':
                 del data['term_vector']
 
             mapper.add_property(mappings.StringField(**data))
@@ -40,14 +38,15 @@ def model_to_mapping(model, depth=1):
 
     return mapper
 
+
 def get_mapping_for_field(field, depth=1, **options):
     """Given a field returns a mapping"""
     ntype = type(field).__name__
     if ntype in ["AutoField"]:
-#        return mappings.MultiField(name=field.name,
-#                                   fields={field.name:mappings.StringField(name=field.name, store=True),
-#                                           "int":mappings.IntegerField(name="int", store=True)}
-#                                   )
+        # return mappings.MultiField(name=field.name,
+        #                            fields={field.name:mappings.StringField(name=field.name, store=True),
+        #                                    "int":mappings.IntegerField(name="int", store=True)}
+        #                            )
         return mappings.StringField(name=field.name, store=True)
     elif ntype in ["IntegerField",
                    "PositiveSmallIntegerField",
@@ -100,7 +99,7 @@ def get_mapping_for_field(field, depth=1, **options):
 
         data.update(options)
 
-        if  data['index'] == 'not_analyzed':
+        if data['index'] == 'not_analyzed':
             del data['term_vector']
 
         return mappings.StringField(**data)
@@ -135,4 +134,3 @@ def get_mapping_for_field(field, depth=1, **options):
             return None
     print ntype
     return None
-
