@@ -24,7 +24,7 @@ class DatabaseOperations(NonrelDatabaseOperations):
         not support aggregation.
         """
         pass
-    
+
 class DatabaseFeatures(NonrelDatabaseFeatures):
     string_based_auto_field = True
 
@@ -78,7 +78,6 @@ class DatabaseWrapper(NonrelDatabaseWrapper):
             self._connection = ES("%s:%s" % (self.settings_dict['HOST'], port),
                                   decoder=Decoder,
                                   encoder=Encoder,
-                                  autorefresh=True,
                                   default_indices=[self.db_name])
 
             self._db_connection = self._connection
