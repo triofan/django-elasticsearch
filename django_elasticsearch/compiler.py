@@ -4,23 +4,26 @@ import re
 from datetime import datetime
 from functools import wraps
 
-from django.conf import settings
-from django.db import models
-from django.db.models.sql import aggregates as sqlaggregates
 from django.db.models.sql.compiler import SQLCompiler
-from django.db.models.sql import aggregates as sqlaggregates
 from django.db.models.constants import LOOKUP_SEP
-from django.db.models.sql.constants import MULTI, SINGLE
-from django.db.models.sql.where import AND, OR
-from django.db.utils import DatabaseError, IntegrityError
-from django.db.models.sql.where import WhereNode
+from django.db.utils import DatabaseError
 from django.db.models.fields import NOT_PROVIDED
-from django.utils.tree import Node
-from pyes import MatchAllQuery, FilteredQuery, BoolQuery, StringQuery, \
-                WildcardQuery, RegexTermQuery, RangeQuery, ESRange, \
-                TermQuery, ConstantScoreQuery, TermFilter, TermsFilter, NotFilter, RegexTermFilter
-from djangotoolbox.db.basecompiler import NonrelQuery, NonrelCompiler, \
-    NonrelInsertCompiler, NonrelUpdateCompiler, NonrelDeleteCompiler
+from pyes import (
+    MatchAllQuery,
+    RangeQuery,
+    ESRange,
+    ConstantScoreQuery,
+    TermFilter,
+    TermsFilter,
+    NotFilter,
+    RegexTermFilter
+)
+from djangotoolbox.db.basecompiler import (
+    NonrelQuery,
+    NonrelCompiler,
+    NonrelInsertCompiler,
+    NonrelDeleteCompiler
+)
 from django.db.models.fields import AutoField
 import logging
 
